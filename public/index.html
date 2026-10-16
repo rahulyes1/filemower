@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Move a file between your phone and computer with a one-time key. End-to-end encrypted, deleted after 30 minutes." />
+  <meta name="theme-color" content="#f5f6fb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0d1017" media="(prefers-color-scheme: dark)" />
+  <title>File Mover</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235b5bf7'/%3E%3Cpath d='M20 36l12-12 12 12M32 25v22' stroke='white' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5M12 9.5V19" /></svg>
+        </span>
+        File Mover
+      </div>
+      <p class="tagline">Phone, tablet or PC. Encrypted on your device, gone in 30&nbsp;minutes.</p>
+    </header>
+
+    <div id="banner" class="banner" role="status" hidden></div>
+
+    <nav class="tabs" role="tablist" aria-label="Mode">
+      <button id="tab-send" role="tab" aria-selected="true" aria-controls="send">Send</button>
+      <button id="tab-recv" role="tab" aria-selected="false" aria-controls="recv">Receive</button>
+    </nav>
+
+    <!-- ===================== SEND ===================== -->
+    <section id="send" class="view" role="tabpanel" aria-labelledby="tab-send">
+      <label id="drop" class="drop" for="file">
+        <input id="file" type="file" />
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 16V5M7 10l5-5 5 5M5 19h14" /></svg>
+        </span>
+        <span class="drop-title">Choose a file</span>
+        <span class="drop-sub">Up to 30&nbsp;MB · photos, videos, documents</span>
+        <span class="drop-desktop">or drop it here, or paste with Ctrl+V</span>
+      </label>
+
+      <div id="picked" class="file-card" hidden>
+        <div id="pick-thumb" class="thumb"></div>
+        <div class="file-text">
+          <div id="pick-name" class="file-name"></div>
+          <div id="pick-size" class="file-sub"></div>
+        </div>
+        <button id="pick-clear" class="icon-btn" aria-label="Choose a different file">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+
+      <button id="send-btn" class="btn primary big" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+        Encrypt &amp; send
+      </button>
+
+      <div id="send-progress" class="progress" hidden>
+        <div class="progress-row"><span id="send-stage"></span><span id="send-pct"></span></div>
+        <div class="bar"><i id="send-bar"></i></div>
+      </div>
+
+      <p id="send-error" class="error" role="alert" hidden></p>
+
+      <div id="sent" class="sent" hidden>
+        <p class="eyebrow">Your one-time key</p>
+        <div id="key-out" class="key" aria-live="polite"></div>
+        <p class="hint">On the other device, open this site, tap <b>Receive</b>, and type this key.</p>
+
+        <div class="row">
+          <button id="copy-key" class="btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a1 1 0 0 1 1-1h9" /></svg>
+            <span>Copy key</span>
+          </button>
+          <button id="share-link" class="btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6" /></svg>
+            <span>Share link</span>
+          </button>
+        </div>
+
+        <figure class="qr-box">
+          <canvas id="qr" width="176" height="176" aria-label="QR code with a link to this file"></canvas>
+          <figcaption>Or scan with the other device's camera</figcaption>
+        </figure>
+
+        <p id="timer" class="timer">Deleted automatically in <b id="countdown">30:00</b></p>
+
+        <div class="row">
+          <button id="delete-now" class="btn ghost danger">Delete now</button>
+          <button id="send-again" class="btn ghost">Send another</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== RECEIVE ===================== -->
+    <section id="recv" class="view" role="tabpanel" aria-labelledby="tab-recv" hidden>
+      <form id="recv-form" class="recv-form" autocomplete="off">
+        <label class="field-label" for="key-in">Enter the 12-digit key</label>
+        <input id="key-in" class="key-input" type="text" inputmode="numeric" pattern="[0-9-]*"
+               maxlength="14" placeholder="0000-0000-0000" spellcheck="false" />
+        <div class="row">
+          <button id="paste-key" class="btn" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4h6v3H9z" /></svg>
+            <span>Paste</span>
+          </button>
+          <button id="recv-btn" class="btn primary" type="submit" disabled>Get file</button>
+        </div>
+      </form>
+
+      <div id="recv-progress" class="progress" hidden>
+        <div class="progress-row"><span id="recv-stage"></span><span id="recv-pct"></span></div>
+        <div class="bar"><i id="recv-bar"></i></div>
+      </div>
+
+      <p id="recv-error" class="error" role="alert" hidden></p>
+
+      <div id="got" class="got" hidden>
+        <div id="preview" class="preview" hidden></div>
+        <div class="file-card">
+          <div id="got-thumb" class="thumb"></div>
+          <div class="file-text">
+            <div id="got-name" class="file-name"></div>
+            <div id="got-size" class="file-sub"></div>
+          </div>
+        </div>
+        <button id="save-btn" class="btn primary big">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+          Save file
+        </button>
+        <button id="download-btn" class="text-btn" hidden>Download instead</button>
+        <p id="burn-note" class="ok-note"></p>
+        <button id="recv-again" class="btn ghost">Receive another</button>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+        AES-256 encryption happens in your browser. The server never sees your file, its name, or the key.
+      </p>
+    </footer>
+  </main>
+
+  <script src="qrcode.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

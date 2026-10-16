@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "crons": [{ "path": "/api/cleanup", "schedule": "0 3 * * *" }]
+}
