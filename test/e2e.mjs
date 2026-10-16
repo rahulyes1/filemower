@@ -4,7 +4,7 @@
 //   node test/e2e.mjs [baseUrl]                 (default http://localhost:3000)
 //   node test/e2e.mjs [baseUrl] --expiry 3000   (server started with FILEMOVER_TTL_MS=3000)
 import { sendFile, receiveFile, deleteFile } from '../public/transfer.mjs';
-import { MAX_FILE_BYTES, PART_BYTES, newKey } from '../public/crypto.mjs';
+import { MAX_FILE_BYTES, MAX_PARTS, PART_BYTES, newKey } from '../public/crypto.mjs';
 
 const args = process.argv.slice(2);
 const expiryIdx = args.indexOf('--expiry');
@@ -58,7 +58,7 @@ await check('health reports storage connected', async () => {
   assert(h.ok, `storage not ready: ${JSON.stringify(h)}`);
 });
 
-await check('30 MB round-trip is byte-identical (10 parts)', async () => {
+await check('30 MB round-trip is byte-identical (30 parts)', async () => {
   const bytes = randomBytes(MAX_FILE_BYTES);
   const sent = await sendFile({ base, bytes, name: 'big video.mp4', type: 'video/mp4' });
   assert(/^\d{12}$/.test(sent.key), 'key should be 12 digits');
@@ -109,7 +109,7 @@ await check('server refuses oversized part (413) and bad ids/parts (400)', async
   assert(big.status === 413, `oversize part: ${big.status}`);
   const badId = await fetch(`${base}/api/meta?id=../../etc`);
   assert(badId.status === 400, `bad id: ${badId.status}`);
-  const badN = await fetch(`${base}/api/part?id=${id}&n=10`, { method: 'PUT', body: new Uint8Array(64) });
+  const badN = await fetch(`${base}/api/part?id=${id}&n=${MAX_PARTS}`, { method: 'PUT', body: new Uint8Array(64) });
   assert(badN.status === 400, `bad part index: ${badN.status}`);
 });
 

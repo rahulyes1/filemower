@@ -14,8 +14,10 @@
  */
 
 export const KEY_DIGITS = 12;
-export const PART_BYTES = 3 * 1024 * 1024;
-export const MAX_FILE_BYTES = 10 * PART_BYTES; // 30 MiB
+// 1 MiB parts keep every request short even on a slow mobile uplink.
+export const PART_BYTES = 1024 * 1024;
+export const MAX_PARTS = 30;
+export const MAX_FILE_BYTES = MAX_PARTS * PART_BYTES; // 30 MiB
 
 const SALT = new TextEncoder().encode('filemover/v2');
 const ITERATIONS = 600000;

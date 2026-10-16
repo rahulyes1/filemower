@@ -15,7 +15,11 @@ import {
   decryptMeta,
 } from './crypto.mjs';
 
-const CONCURRENCY = 3;
+// Uploads share the (often slow) uplink, so fewer at once keeps each request
+// short; downloads benefit from more parallelism.
+const UPLOAD_CONCURRENCY = 2;
+const DOWNLOAD_CONCURRENCY = 4;
+const TRIES = 4;
 
 export class TransferError extends Error {
   constructor(message, status) {
@@ -24,20 +28,23 @@ export class TransferError extends Error {
   }
 }
 
-// fetch with retries for network blips and 5xx (common on mobile data).
-async function request(url, opts = {}, tries = 3) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// fetch with retries for dropped connections and 5xx (common on mobile data).
+async function request(url, opts = {}) {
   for (let attempt = 1; ; attempt++) {
     let res;
     try {
       res = await fetch(url, opts);
     } catch (err) {
-      if (attempt >= tries) throw new TransferError('Network error. Check your connection and try again.');
-      await new Promise((r) => setTimeout(r, 500 * attempt));
+      if (opts.signal && opts.signal.aborted) throw err;
+      if (attempt >= TRIES) throw new TransferError('Network error. Check your connection and try again.');
+      await sleep(800 * attempt);
       continue;
     }
     if (res.ok) return res;
-    if (res.status >= 500 && res.status !== 503 && attempt < tries) {
-      await new Promise((r) => setTimeout(r, 500 * attempt));
+    if (res.status >= 500 && res.status !== 503 && attempt < TRIES) {
+      await sleep(800 * attempt);
       continue;
     }
     const body = await res.json().catch(() => ({}));
@@ -45,12 +52,24 @@ async function request(url, opts = {}, tries = 3) {
   }
 }
 
-async function pool(count, worker) {
+// Run worker(0..count-1) with limited parallelism. On the first failure the
+// rest are cancelled, so a failed transfer stops using bandwidth.
+async function pool(count, concurrency, worker) {
+  const ac = new AbortController();
   let next = 0;
+  let firstError;
   const run = async () => {
-    while (next < count) await worker(next++);
+    while (next < count && !ac.signal.aborted) {
+      try {
+        await worker(next++, ac.signal);
+      } catch (err) {
+        if (!firstError) firstError = err;
+        ac.abort();
+      }
+    }
   };
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, count) }, run));
+  await Promise.all(Array.from({ length: Math.min(concurrency, count) }, run));
+  if (firstError) throw firstError;
 }
 
 /** Encrypt and upload. Returns { key, id, expiresIn }. */
@@ -63,10 +82,10 @@ export async function sendFile({ base = '', bytes, name, type, onProgress = () =
   let done = 0;
   onProgress({ stage: 'upload', done, total });
 
-  await pool(total, async (n) => {
+  await pool(total, UPLOAD_CONCURRENCY, async (n, signal) => {
     const plain = bytes.subarray(n * PART_BYTES, Math.min(bytes.length, (n + 1) * PART_BYTES));
     const body = await encryptPart(aes, plain, n, total);
-    await request(`${base}/api/part?id=${id}&n=${n}`, { method: 'PUT', body });
+    await request(`${base}/api/part?id=${id}&n=${n}`, { method: 'PUT', body, signal });
     onProgress({ stage: 'upload', done: ++done, total });
   });
 
@@ -112,8 +131,8 @@ export async function receiveFile({ base = '', key, onProgress = () => {} }) {
   let done = 0;
   onProgress({ stage: 'download', done, total });
 
-  await pool(total, async (n) => {
-    const res = await request(`${base}/api/part?id=${id}&n=${n}`);
+  await pool(total, DOWNLOAD_CONCURRENCY, async (n, signal) => {
+    const res = await request(`${base}/api/part?id=${id}&n=${n}`, { signal });
     const data = new Uint8Array(await res.arrayBuffer());
     let plain;
     try {

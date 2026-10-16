@@ -17,7 +17,8 @@ Files are **encrypted in your browser** before they leave the device, and they'r
 - The key is turned into 512 bits with **PBKDF2-SHA256** (600,000 rounds):
   the first half is the storage id, the second half is the **AES-256-GCM** key.
 - The server only ever sees the storage id and encrypted bytes. Never the key, the file, its name or its type.
-- Each 3 MB part is authenticated with its position, so parts can't be swapped, reordered or dropped.
+- Files are sent in 1 MB parts (short requests that survive slow mobile links, each retried on failure).
+  Every part is authenticated with its position, so parts can't be swapped, reordered or dropped.
 - Shared links put the key after `#`, which browsers never send to servers.
 - Storage is a **private** Vercel Blob store. Files have no public URL.
 - Files expire 30 minutes after upload. Expired files are refused and deleted on read,
