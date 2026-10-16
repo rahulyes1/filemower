@@ -3,5 +3,6 @@
   "framework": null,
   "buildCommand": "",
   "outputDirectory": "public",
+  "regions": ["bom1"],
   "crons": [{ "path": "/api/cleanup", "schedule": "0 3 * * *" }]
 }
